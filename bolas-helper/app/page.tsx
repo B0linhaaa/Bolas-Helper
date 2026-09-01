@@ -4,6 +4,8 @@ import { listUpcoming } from "@/lib/espn";
 import { formatOdd } from "@/lib/odds";
 import type { ListedMatch } from "@/lib/types";
 
+export const revalidate = 300;
+
 function formatWhen(iso: string): string {
   if (!iso) return "";
   return new Intl.DateTimeFormat("pt-PT", {
@@ -28,8 +30,10 @@ export default async function Home({
   let error = "";
   try {
     matches = await listUpcoming(liga, league.name);
-    const { rememberListedMatches } = await import("@/lib/odds-watch");
-    await rememberListedMatches(matches).catch(() => undefined);
+    if (!process.env.VERCEL) {
+      const { rememberListedMatches } = await import("@/lib/odds-watch");
+      await rememberListedMatches(matches).catch(() => undefined);
+    }
   } catch {
     error = "Não foi possível ler os jogos agora. Tenta daqui a um minuto.";
   }

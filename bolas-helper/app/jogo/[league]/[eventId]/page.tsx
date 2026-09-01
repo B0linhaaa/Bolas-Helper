@@ -5,6 +5,8 @@ import { getMatchDetail } from "@/lib/espn";
 import { getLeague } from "@/lib/leagues";
 import { formatOdd } from "@/lib/odds";
 
+export const revalidate = 300;
+
 function formatWhen(iso: string): string {
   if (!iso) return "";
   return new Intl.DateTimeFormat("pt-PT", {

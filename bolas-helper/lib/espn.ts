@@ -1,20 +1,31 @@
 import { espnOddsToBook } from "./odds";
 import type { ListedMatch, MatchDetail, MatchStatus, PastGame } from "./types";
 
-const ESPN = "https://site.api.espn.com/apis/site/v2/sports/soccer";
+const ESPN_HOSTS = [
+  "https://site.web.api.espn.com/apis/site/v2/sports/soccer",
+  "https://site.api.espn.com/apis/site/v2/sports/soccer",
+];
+
+const ESPN_HEADERS = {
+  Accept: "application/json",
+  "Accept-Language": "pt-PT,pt;q=0.9,en;q=0.8",
+  Referer: "https://www.espn.com/",
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+};
 
 async function espnGet(path: string, fresh = false): Promise<unknown> {
-  const res = await fetch(`${ESPN}/${path}`, {
-    ...(fresh ? { cache: "no-store" as const } : { next: { revalidate: 1200 } }),
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "BolasHelper/0.1 (personal match analysis)",
-    },
-  });
-  if (!res.ok) {
-    throw new Error(`ESPN ${res.status} ${path}`);
+  let lastError: Error | null = null;
+  for (const host of ESPN_HOSTS) {
+    const res = await fetch(`${host}/${path}`, {
+      ...(fresh ? { cache: "no-store" as const } : { next: { revalidate: 300 } }),
+      headers: ESPN_HEADERS,
+    });
+    if (res.ok) return res.json();
+    lastError = new Error(`ESPN ${res.status} ${path}`);
+    if (res.status !== 403 && res.status !== 401 && res.status !== 429) break;
   }
-  return res.json();
+  throw lastError ?? new Error(`ESPN ${path}`);
 }
 
 function yyyymmdd(date: Date): string {
@@ -90,36 +101,25 @@ export async function listUpcoming(
   options: { days?: number; fresh?: boolean } = {},
 ): Promise<ListedMatch[]> {
   const span = options.days ?? 8;
-  const days = Array.from({ length: span }, (_, i) => {
-    const d = new Date();
-    d.setUTCDate(d.getUTCDate() + i);
-    return yyyymmdd(d);
-  });
+  const start = new Date();
+  const end = new Date();
+  end.setUTCDate(end.getUTCDate() + span - 1);
+  const range = `${yyyymmdd(start)}-${yyyymmdd(end)}`;
 
-  const payloads = await Promise.all(
-    days.map(async (day) => {
-      try {
-        return (await espnGet(
-          `${leagueSlug}/scoreboard?dates=${day}`,
-          options.fresh,
-        )) as Record<string, unknown>;
-      } catch {
-        return { events: [] };
-      }
-    }),
-  );
+  const payload = (await espnGet(
+    `${leagueSlug}/scoreboard?dates=${range}&limit=50`,
+    options.fresh,
+  )) as Record<string, unknown>;
 
   const seen = new Set<string>();
   const matches: ListedMatch[] = [];
-  for (const payload of payloads) {
-    const events = (payload.events as Record<string, unknown>[]) ?? [];
-    for (const event of events) {
-      const match = parseEvent(event, leagueSlug, leagueName);
-      if (!match || seen.has(match.eventId)) continue;
-      seen.add(match.eventId);
-      if (match.status === "post") continue;
-      matches.push(match);
-    }
+  const events = (payload.events as Record<string, unknown>[]) ?? [];
+  for (const event of events) {
+    const match = parseEvent(event, leagueSlug, leagueName);
+    if (!match || seen.has(match.eventId)) continue;
+    seen.add(match.eventId);
+    if (match.status === "post") continue;
+    matches.push(match);
   }
 
   return matches.sort((a, b) => a.start.localeCompare(b.start));
