@@ -16,26 +16,28 @@ export function MarketQuoteRow({
 }) {
   const up = (quote.changePct ?? 0) >= 0;
   return (
-    <li className="flex items-center justify-between gap-3 py-2.5">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium">{name}</p>
-        <p className="text-xs text-zinc-500">{quote.symbol}</p>
-      </div>
-      <div className="flex shrink-0 items-center gap-4">
-        <div className="text-right">
-          <p className="text-sm font-semibold">{formatPrice(quote.price, quote.currency)}</p>
-          <p className={`text-xs font-medium ${up ? "text-emerald-700 dark:text-lime-300" : "text-rose-600"}`}>
-            {formatPct(quote.changePct)}
-          </p>
-        </div>
-        <FavoriteButton
-          compact
-          saved={saved}
-          kind={kind}
-          symbol={quote.symbol}
-          name={name}
-        />
-      </div>
+    <li className="flex items-center gap-2 py-1">
+      <p className="min-w-0 flex-1 truncate text-sm leading-5">
+        <span className="font-medium">{name}</span>
+        <span className="ml-1.5 text-[11px] text-zinc-500">{quote.symbol}</span>
+      </p>
+      <p className="shrink-0 text-sm font-semibold tabular-nums leading-5">
+        {formatPrice(quote.price, quote.currency)}
+      </p>
+      <p
+        className={`w-12 shrink-0 text-right text-[11px] font-medium tabular-nums leading-5 ${
+          up ? "text-emerald-700 dark:text-lime-300" : "text-rose-600"
+        }`}
+      >
+        {formatPct(quote.changePct)}
+      </p>
+      <FavoriteButton
+        compact
+        saved={saved}
+        kind={kind}
+        symbol={quote.symbol}
+        name={name}
+      />
     </li>
   );
 }

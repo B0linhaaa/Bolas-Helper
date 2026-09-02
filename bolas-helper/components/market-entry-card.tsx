@@ -24,13 +24,13 @@ export function MarketEntryCard({
           <h3 className="mt-1 truncate text-base font-semibold">{name}</h3>
           <p className="text-xs text-zinc-500">{read.quote.symbol}</p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-2">
-          <div className="text-right">
-            <p className="text-sm font-semibold">
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="text-right tabular-nums">
+            <p className="text-sm font-semibold leading-tight">
               {formatPrice(read.quote.price, read.quote.currency)}
             </p>
             <p
-              className={`text-xs font-medium ${
+              className={`text-[11px] font-medium leading-tight ${
                 up ? "text-emerald-700 dark:text-lime-300" : "text-rose-600"
               }`}
             >

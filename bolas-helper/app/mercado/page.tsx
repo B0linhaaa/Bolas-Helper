@@ -18,11 +18,7 @@ function rankedByDay(quotes: QuoteSnapshot[], direction: "up" | "down", limit = 
       ? (b.changePct ?? 0) - (a.changePct ?? 0)
       : (a.changePct ?? 0) - (b.changePct ?? 0),
   );
-  const signed =
-    direction === "up"
-      ? sorted.filter((q) => (q.changePct ?? 0) > 0)
-      : sorted.filter((q) => (q.changePct ?? 0) < 0);
-  return signed.slice(0, limit);
+  return sorted.slice(0, limit);
 }
 
 export default async function MercadoPage({
@@ -133,7 +129,7 @@ export default async function MercadoPage({
         </ul>
       </section>
 
-      <div className="mt-10 grid gap-8 sm:grid-cols-2">
+      <div className="mt-8 grid items-start gap-x-8 gap-y-6 sm:grid-cols-2">
         <section>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-800 dark:text-lime-300">
             Melhor subida
