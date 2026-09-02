@@ -66,31 +66,35 @@ export default async function JogoPage({
         {match.venue ? ` · ${match.venue}` : ""} · {formatWhen(match.start)}
         {match.status === "in" ? ` · ${match.minute}` : ""}
       </p>
-      <h1 className="mt-1 text-2xl font-semibold tracking-tight text-emerald-950 dark:text-lime-200">
-        {match.home.name} - {match.away.name}
+      <h1 className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-2xl font-semibold tracking-tight text-emerald-950 dark:text-lime-200">
+        <span className="inline-flex min-w-0 items-center gap-1">
+          {loggedIn ? (
+            <FavoriteButton
+              compact
+              saved={savedTeams.has(match.home.id)}
+              kind="team"
+              symbol={match.home.id}
+              name={match.home.name}
+              extra={{ league: slug, logo: match.home.logo }}
+            />
+          ) : null}
+          <span className="truncate">{match.home.name}</span>
+        </span>
+        <span className="font-normal text-emerald-700/70 dark:text-lime-200/50">–</span>
+        <span className="inline-flex min-w-0 items-center gap-1">
+          <span className="truncate">{match.away.name}</span>
+          {loggedIn ? (
+            <FavoriteButton
+              compact
+              saved={savedTeams.has(match.away.id)}
+              kind="team"
+              symbol={match.away.id}
+              name={match.away.name}
+              extra={{ league: slug, logo: match.away.logo }}
+            />
+          ) : null}
+        </span>
       </h1>
-      {loggedIn ? (
-        <div className="mt-3 flex flex-wrap gap-3">
-          <FavoriteButton
-            compact
-            saved={savedTeams.has(match.home.id)}
-            kind="team"
-            symbol={match.home.id}
-            name={match.home.name}
-            extra={{ league: slug, logo: match.home.logo }}
-            label={match.home.name}
-          />
-          <FavoriteButton
-            compact
-            saved={savedTeams.has(match.away.id)}
-            kind="team"
-            symbol={match.away.id}
-            name={match.away.name}
-            extra={{ league: slug, logo: match.away.logo }}
-            label={match.away.name}
-          />
-        </div>
-      ) : null}
       {match.status !== "pre" && match.homeScore != null && match.awayScore != null ? (
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           {match.homeScore}-{match.awayScore}
@@ -107,7 +111,7 @@ export default async function JogoPage({
       <div className="mt-6 flex flex-wrap gap-6">
         <div>
           <p className="text-xl font-semibold">{pct(analysis.pOver25)}</p>
-          <p className="text-xs text-zinc-500">P(Over 2.5) modelo</p>
+          <p className="text-xs text-zinc-500">Prob. mais de 2,5 golos</p>
         </div>
         <div>
           <p className="text-xl font-semibold">{pct(analysis.pBtts)}</p>
@@ -122,7 +126,9 @@ export default async function JogoPage({
         {book?.home != null ? (
           <div>
             <p className="text-xl font-semibold">{formatOdd(book.home)}</p>
-            <p className="text-xs text-zinc-500">Odd 1 · {book.bookmaker}</p>
+            <p className="text-xs text-zinc-500">
+              {match.home.name} a ganhar · {book.bookmaker}
+            </p>
           </div>
         ) : null}
       </div>

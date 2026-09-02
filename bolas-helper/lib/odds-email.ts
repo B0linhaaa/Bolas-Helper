@@ -1,4 +1,4 @@
-import { formatOdd, formatOddsLine } from "./odds";
+import { formatOdd, formatGoalLine, formatOddsLine } from "./odds";
 import type { ListedMatch } from "./types";
 
 function matchName(match: ListedMatch): string {
@@ -28,15 +28,15 @@ function oddsHtml(match: ListedMatch): string {
   const rows: string[] = [];
   if (odds.home != null) {
     rows.push(
-      `<p style="margin:10px 0 0;font-size:16px;color:#12382a">1 <strong style="color:#0f7a4a">${formatOdd(odds.home)}</strong>${
-        odds.draw != null ? `&nbsp;&nbsp;X <strong style="color:#0f7a4a">${formatOdd(odds.draw)}</strong>` : ""
-      }${odds.away != null ? `&nbsp;&nbsp;2 <strong style="color:#0f7a4a">${formatOdd(odds.away)}</strong>` : ""}</p>`,
+      `<p style="margin:10px 0 0;font-size:15px;color:#12382a">${match.home.name} a ganhar <strong style="color:#0f7a4a">${formatOdd(odds.home)}</strong>${
+        odds.draw != null ? `&nbsp;&nbsp;Empate <strong style="color:#0f7a4a">${formatOdd(odds.draw)}</strong>` : ""
+      }${odds.away != null ? `&nbsp;&nbsp;${match.away.name} a ganhar <strong style="color:#0f7a4a">${formatOdd(odds.away)}</strong>` : ""}</p>`,
     );
   }
   if (odds.over != null && odds.overLine != null) {
     rows.push(
-      `<p style="margin:4px 0 0;font-size:14px;color:#3f5c4d">Over ${odds.overLine} <strong style="color:#0f7a4a">${formatOdd(odds.over)}</strong>${
-        odds.under != null ? `&nbsp;&nbsp;Under ${odds.overLine} <strong style="color:#0f7a4a">${formatOdd(odds.under)}</strong>` : ""
+      `<p style="margin:4px 0 0;font-size:14px;color:#3f5c4d">Mais de ${formatGoalLine(odds.overLine)} golos <strong style="color:#0f7a4a">${formatOdd(odds.over)}</strong>${
+        odds.under != null ? `&nbsp;&nbsp;Menos de ${formatGoalLine(odds.overLine)} golos <strong style="color:#0f7a4a">${formatOdd(odds.under)}</strong>` : ""
       }</p>`,
     );
   }
@@ -126,7 +126,7 @@ export function favoriteOddsEmail(matches: ListedMatch[], preview = false): { su
   const text = `${intro}\n\n${ordered
     .map(
       (match) =>
-        `${matchName(match)}\n${match.leagueName} · ${formatWhen(match.start)}\n${formatOddsLine(match.odds)}\n${matchUrl(match)}`,
+        `${matchName(match)}\n${match.leagueName} · ${formatWhen(match.start)}\n${formatOddsLine(match.odds, { home: match.home.name, away: match.away.name })}\n${matchUrl(match)}`,
     )
     .join("\n\n")}`;
   return { subject, html, text };

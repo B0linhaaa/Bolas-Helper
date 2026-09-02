@@ -1,4 +1,4 @@
-import { impliedProb } from "./odds";
+import { formatGoalLine, impliedProb } from "./odds";
 import { fitPoisson } from "./model";
 import type { MatchAnalysis, MatchDetail, PastGame, Pick, RiskTier } from "./types";
 
@@ -164,8 +164,8 @@ export function analyseMatch(match: MatchDetail): MatchAnalysis {
 
   const line = odds?.overLine ?? 2.5;
   const pOver = model.pOver(line);
-  add(cands, `Over ${line}`, pOver, "totals", odds?.over ?? null);
-  add(cands, `Under ${line}`, 1 - pOver, "totals", odds?.under ?? null);
+  add(cands, `Mais de ${formatGoalLine(line)} golos`, pOver, "totals", odds?.over ?? null);
+  add(cands, `Menos de ${formatGoalLine(line)} golos`, 1 - pOver, "totals", odds?.under ?? null);
 
   add(cands, "BTTS sim", model.pBtts, "btts", null);
 

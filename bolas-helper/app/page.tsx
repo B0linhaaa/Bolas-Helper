@@ -4,10 +4,7 @@ import { TeamSearch } from "@/components/team-search";
 import { listUpcoming, listUpcomingForFavoriteTeams } from "@/lib/espn";
 import { listFavorites } from "@/lib/favorites";
 import { DEFAULT_LEAGUE, LEAGUES, getLeague } from "@/lib/leagues";
-import { formatOdd } from "@/lib/odds";
 import type { ListedMatch } from "@/lib/types";
-
-export const dynamic = "force-dynamic";
 
 function formatWhen(iso: string): string {
   if (!iso) return "";
@@ -20,6 +17,8 @@ function formatWhen(iso: string): string {
     minute: "2-digit",
   }).format(new Date(iso));
 }
+
+export const dynamic = "force-dynamic";
 
 export default async function Home({
   searchParams,
@@ -117,22 +116,6 @@ export default async function Home({
                 <p className="mt-1 font-medium text-emerald-950 dark:text-emerald-50">
                   {match.home.name} - {match.away.name}
                 </p>
-                {match.odds?.over != null && match.odds.overLine != null ? (
-                  <p className="mt-1 text-xs font-medium text-emerald-700 dark:text-lime-300">
-                    Over {match.odds.overLine} {formatOdd(match.odds.over)}
-                    {match.odds.home != null
-                      ? ` · 1 ${formatOdd(match.odds.home)}`
-                      : ""}
-                  </p>
-                ) : match.odds?.home != null ? (
-                  <p className="mt-1 text-xs font-medium text-emerald-700 dark:text-lime-300">
-                    1 {formatOdd(match.odds.home)}
-                    {match.odds.draw != null ? ` · X ${formatOdd(match.odds.draw)}` : ""}
-                    {match.odds.away != null ? ` · 2 ${formatOdd(match.odds.away)}` : ""}
-                  </p>
-                ) : (
-                  <p className="mt-1 text-xs text-zinc-400">Odds ainda não no feed</p>
-                )}
               </div>
               <span className="text-xs font-medium text-emerald-700 dark:text-lime-300">Abrir</span>
             </Link>

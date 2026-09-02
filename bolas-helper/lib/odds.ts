@@ -23,30 +23,69 @@ export function formatOdd(decimal: number): string {
   return decimal.toFixed(2);
 }
 
+export function formatGoalLine(line: number): string {
+  return String(line).replace(".", ",");
+}
+
+export function formatOddsPreview(
+  odds: {
+    home: number | null;
+    draw: number | null;
+    away: number | null;
+    overLine: number | null;
+    over: number | null;
+    under?: number | null;
+  } | null,
+  homeName: string,
+  awayName: string,
+): string[] {
+  if (!odds) return [];
+  const lines: string[] = [];
+  if (odds.over != null && odds.overLine != null) {
+    lines.push(`Mais de ${formatGoalLine(odds.overLine)} golos ${formatOdd(odds.over)}`);
+  }
+  if (odds.home != null) {
+    lines.push(`${homeName} a ganhar ${formatOdd(odds.home)}`);
+  }
+  if (odds.over == null && odds.draw != null) {
+    lines.push(`Empate ${formatOdd(odds.draw)}`);
+  }
+  if (odds.over == null && odds.away != null) {
+    lines.push(`${awayName} a ganhar ${formatOdd(odds.away)}`);
+  }
+  return lines;
+}
+
 export function hasBookOdds(odds: { home: number | null; over: number | null } | null): boolean {
   if (!odds) return false;
   return odds.home != null || odds.over != null;
 }
 
-export function formatOddsLine(odds: {
-  home: number | null;
-  draw: number | null;
-  away: number | null;
-  overLine: number | null;
-  over: number | null;
-  under?: number | null;
-} | null): string {
+export function formatOddsLine(
+  odds: {
+    home: number | null;
+    draw: number | null;
+    away: number | null;
+    overLine: number | null;
+    over: number | null;
+    under?: number | null;
+  } | null,
+  teams?: { home: string; away: string },
+): string {
   if (!odds) return "";
+  const home = teams?.home ?? "Casa";
+  const away = teams?.away ?? "Visitante";
   const parts: string[] = [];
   if (odds.home != null) {
-    parts.push(
-      `1 ${formatOdd(odds.home)}${odds.draw != null ? ` · X ${formatOdd(odds.draw)}` : ""}${odds.away != null ? ` · 2 ${formatOdd(odds.away)}` : ""}`,
-    );
+    parts.push(`${home} a ganhar ${formatOdd(odds.home)}`);
+    if (odds.draw != null) parts.push(`Empate ${formatOdd(odds.draw)}`);
+    if (odds.away != null) parts.push(`${away} a ganhar ${formatOdd(odds.away)}`);
   }
   if (odds.over != null && odds.overLine != null) {
-    const under =
-      odds.under != null ? ` · Under ${odds.overLine} ${formatOdd(odds.under)}` : "";
-    parts.push(`Over ${odds.overLine} ${formatOdd(odds.over)}${under}`);
+    parts.push(`Mais de ${formatGoalLine(odds.overLine)} golos ${formatOdd(odds.over)}`);
+    if (odds.under != null) {
+      parts.push(`Menos de ${formatGoalLine(odds.overLine)} golos ${formatOdd(odds.under)}`);
+    }
   }
   return parts.join(" · ");
 }
