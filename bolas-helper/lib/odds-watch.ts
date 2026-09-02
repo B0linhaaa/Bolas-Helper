@@ -128,7 +128,8 @@ export async function notifyNewOdds(): Promise<{
   for (const match of matches) {
     const prev = snapshot.get(match.eventId);
     const hadOdds = hasBookOdds(match.odds);
-    const justOpened = Boolean(prev) && prev.had_odds === false && hadOdds && !prev.notified;
+    const justOpened =
+      prev != null && prev.had_odds === false && hadOdds && !prev.notified;
     if (justOpened) opened.push(match);
     nextRows.push({
       event_id: match.eventId,
