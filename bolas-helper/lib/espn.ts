@@ -1,4 +1,5 @@
 import { espnOddsToBook } from "./odds";
+import { DEFAULT_LEAGUE, getLeague } from "./leagues";
 import type { ListedMatch, MatchDetail, MatchStatus, PastGame } from "./types";
 
 const ESPN_HOSTS = [
@@ -6,7 +7,7 @@ const ESPN_HOSTS = [
   "https://site.api.espn.com/apis/site/v2/sports/soccer",
 ];
 
-const ESPN_HEADERS = {
+export const ESPN_HEADERS = {
   Accept: "application/json",
   "Accept-Language": "pt-PT,pt;q=0.9,en;q=0.8",
   Referer: "https://www.espn.com/",
@@ -71,10 +72,14 @@ function parseEvent(event: Record<string, unknown>, leagueSlug: string, leagueNa
     || (event.venue as { displayName?: string } | undefined)?.displayName
     || "";
 
+  const eventLeague = event.league as { slug?: string; name?: string; shortName?: string } | undefined;
+  const slug = eventLeague?.slug || leagueSlug;
+  const name = getLeague(slug)?.name || eventLeague?.shortName || eventLeague?.name || leagueName;
+
   return {
     eventId: String(event.id),
-    league: leagueSlug,
-    leagueName,
+    league: slug,
+    leagueName: name,
     start: String(event.date ?? comp.date ?? ""),
     venue,
     home: {
@@ -120,6 +125,58 @@ export async function listUpcoming(
     seen.add(match.eventId);
     if (match.status === "post") continue;
     matches.push(match);
+  }
+
+  return matches.sort((a, b) => a.start.localeCompare(b.start));
+}
+
+const TEAM_FIXTURE_LEAGUES = [
+  "uefa.champions",
+  "uefa.europa",
+  "uefa.europa.conf",
+  "uefa.nations",
+];
+
+export async function listUpcomingForFavoriteTeams(
+  teams: { id: string; league?: string }[],
+): Promise<ListedMatch[]> {
+  const jobs: { league: string; teamId: string }[] = [];
+  const seenJob = new Set<string>();
+  for (const team of teams) {
+    const home = team.league && getLeague(team.league) ? team.league : DEFAULT_LEAGUE;
+    for (const slug of [home, ...TEAM_FIXTURE_LEAGUES]) {
+      const key = `${slug}:${team.id}`;
+      if (seenJob.has(key)) continue;
+      seenJob.add(key);
+      jobs.push({ league: slug, teamId: team.id });
+    }
+  }
+
+  const payloads = await Promise.all(
+    jobs.map(async ({ league, teamId }) => {
+      try {
+        const leagueName = getLeague(league)?.name ?? league;
+        const data = (await espnGet(
+          `${league}/teams/${teamId}/schedule?fixture=true`,
+        )) as Record<string, unknown>;
+        return { league, leagueName, data };
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  const seen = new Set<string>();
+  const matches: ListedMatch[] = [];
+  for (const payload of payloads) {
+    if (!payload) continue;
+    const events = (payload.data.events as Record<string, unknown>[]) ?? [];
+    for (const event of events) {
+      const match = parseEvent(event, payload.league, payload.leagueName);
+      if (!match || seen.has(match.eventId) || match.status === "post") continue;
+      seen.add(match.eventId);
+      matches.push(match);
+    }
   }
 
   return matches.sort((a, b) => a.start.localeCompare(b.start));
@@ -229,4 +286,40 @@ export async function getMatchDetail(
   );
 
   return { ...listed, homeForm, awayForm };
+}
+
+export type TeamHit = {
+  id: string;
+  name: string;
+  league: string;
+  logo: string;
+};
+
+export async function searchSoccerTeams(query: string): Promise<TeamHit[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const res = await fetch(
+    `https://site.web.api.espn.com/apis/common/v3/search?query=${encodeURIComponent(q)}&limit=8`,
+    { cache: "no-store", headers: ESPN_HEADERS },
+  );
+  if (!res.ok) throw new Error(`ESPN search ${res.status}`);
+  const payload = (await res.json()) as {
+    items?: Array<{
+      id?: string;
+      displayName?: string;
+      type?: string;
+      sport?: string;
+      league?: string;
+      defaultLeagueSlug?: string;
+      logos?: { href?: string }[];
+    }>;
+  };
+  return (payload.items ?? [])
+    .filter((item) => item.type === "team" && item.sport === "soccer" && item.id)
+    .map((item) => ({
+      id: String(item.id),
+      name: String(item.displayName ?? ""),
+      league: String(item.league || item.defaultLeagueSlug || ""),
+      logo: item.logos?.[0]?.href ?? "",
+    }));
 }

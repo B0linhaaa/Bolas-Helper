@@ -1,5 +1,10 @@
-export async function sendNotifyEmail(subject: string, html: string, text: string): Promise<void> {
-  const to = process.env.NOTIFY_EMAIL?.trim();
+export async function sendNotifyEmail(
+  subject: string,
+  html: string,
+  text: string,
+  toAddress?: string,
+): Promise<void> {
+  const to = (toAddress || process.env.NOTIFY_EMAIL)?.trim();
   if (!to) {
     throw new Error("NOTIFY_EMAIL não está definido no .env.local");
   }

@@ -34,6 +34,7 @@ export function formatOddsLine(odds: {
   away: number | null;
   overLine: number | null;
   over: number | null;
+  under?: number | null;
 } | null): string {
   if (!odds) return "";
   const parts: string[] = [];
@@ -43,7 +44,9 @@ export function formatOddsLine(odds: {
     );
   }
   if (odds.over != null && odds.overLine != null) {
-    parts.push(`Over ${odds.overLine} ${formatOdd(odds.over)}`);
+    const under =
+      odds.under != null ? ` · Under ${odds.overLine} ${formatOdd(odds.under)}` : "";
+    parts.push(`Over ${odds.overLine} ${formatOdd(odds.over)}${under}`);
   }
   return parts.join(" · ");
 }

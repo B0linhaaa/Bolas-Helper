@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+import { FavoriteButton } from "@/components/favorite-button";
 import { analyseMatch } from "@/lib/analysis";
 import { getMatchDetail } from "@/lib/espn";
+import { listFavorites } from "@/lib/favorites";
 import { getLeague } from "@/lib/leagues";
 import { formatOdd } from "@/lib/odds";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 function formatWhen(iso: string): string {
   if (!iso) return "";
@@ -41,30 +44,60 @@ export default async function JogoPage({
   }
   if (!match) notFound();
 
+  const session = await auth();
+  const savedTeams = session?.user?.id
+    ? new Set(
+        (await listFavorites(session.user.id, "team").catch(() => [])).map((f) => f.symbol),
+      )
+    : new Set<string>();
+  const loggedIn = Boolean(session?.user?.id);
+
   const analysis = analyseMatch(match);
   const book = match.odds;
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-8">
-      <Link href={slug === "por.1" ? "/" : `/?liga=${slug}`} className="text-xs text-zinc-500">
+      <Link href={slug === "por.1" ? "/" : `/?liga=${slug}`} className="text-xs font-medium text-emerald-700 dark:text-lime-300">
         Voltar aos jogos
       </Link>
 
-      <p className="mt-6 text-xs text-zinc-500">
+      <p className="mt-6 text-xs text-emerald-800/70 dark:text-emerald-200/70">
         {league.name}
         {match.venue ? ` · ${match.venue}` : ""} · {formatWhen(match.start)}
         {match.status === "in" ? ` · ${match.minute}` : ""}
       </p>
-      <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+      <h1 className="mt-1 text-2xl font-semibold tracking-tight text-emerald-950 dark:text-lime-200">
         {match.home.name} - {match.away.name}
       </h1>
+      {loggedIn ? (
+        <div className="mt-3 flex flex-wrap gap-3">
+          <FavoriteButton
+            compact
+            saved={savedTeams.has(match.home.id)}
+            kind="team"
+            symbol={match.home.id}
+            name={match.home.name}
+            extra={{ league: slug, logo: match.home.logo }}
+            label={match.home.name}
+          />
+          <FavoriteButton
+            compact
+            saved={savedTeams.has(match.away.id)}
+            kind="team"
+            symbol={match.away.id}
+            name={match.away.name}
+            extra={{ league: slug, logo: match.away.logo }}
+            label={match.away.name}
+          />
+        </div>
+      ) : null}
       {match.status !== "pre" && match.homeScore != null && match.awayScore != null ? (
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           {match.homeScore}-{match.awayScore}
         </p>
       ) : null}
 
-      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-emerald-800 dark:text-lime-300">
         Análise
       </h2>
       <p className="mt-3 text-[15px] leading-7 text-zinc-800 dark:text-zinc-200">
@@ -94,9 +127,9 @@ export default async function JogoPage({
         ) : null}
       </div>
 
-      <hr className="my-8 border-zinc-200 dark:border-zinc-800" />
+      <hr className="my-8 border-emerald-100 dark:border-emerald-900" />
 
-      <p className="text-xs uppercase tracking-wide text-zinc-500">
+      <p className="text-xs uppercase tracking-wide text-emerald-800 dark:text-lime-300">
         Apostas neste jogo
       </p>
       <p className="mt-1 text-xs text-zinc-500">
@@ -105,7 +138,7 @@ export default async function JogoPage({
       </p>
 
       {analysis.picks.length > 0 ? (
-        <div className="mt-3 rounded-md border border-zinc-300 bg-zinc-100 px-4 py-4 dark:border-zinc-700 dark:bg-zinc-900">
+        <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-4 dark:border-emerald-800 dark:bg-emerald-950/40">
           <p className="font-semibold">
             {match.home.name} - {match.away.name}
           </p>
@@ -118,10 +151,10 @@ export default async function JogoPage({
                 <p
                   className={
                     pick.risk === "likely"
-                      ? "text-lg font-semibold text-emerald-800 dark:text-emerald-400"
+                      ? "text-lg font-semibold text-emerald-800 dark:text-lime-300"
                       : pick.risk === "risky"
-                        ? "text-lg font-semibold text-amber-800 dark:text-amber-400"
-                        : "text-lg font-semibold text-zinc-800 dark:text-zinc-200"
+                        ? "text-lg font-semibold text-amber-700 dark:text-amber-300"
+                        : "text-lg font-semibold text-rose-800 dark:text-rose-300"
                   }
                 >
                   {pick.market} - {formatOdd(pick.odd)}
@@ -154,7 +187,7 @@ export default async function JogoPage({
         </ul>
       ) : null}
 
-      <h2 className="mt-10 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+      <h2 className="mt-10 text-sm font-semibold uppercase tracking-wide text-emerald-800 dark:text-lime-300">
         Jogos usados
       </h2>
       <FormTable title={match.home.name} games={match.homeForm} />
