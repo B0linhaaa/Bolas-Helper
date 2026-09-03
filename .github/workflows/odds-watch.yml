@@ -1,0 +1,21 @@
+name: Odds watch
+
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar odds das equipas favoritas
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "Faltam secrets APP_URL e CRON_SECRET no GitHub."
+            exit 1
+          fi
+          curl -fsS -H "Authorization: Bearer $CRON_SECRET" "${APP_URL%/}/api/notify-odds"

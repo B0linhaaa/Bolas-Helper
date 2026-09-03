@@ -38,7 +38,7 @@ export const FAMOUS_CRYPTO: UniverseAsset[] = [
   { kind: "crypto", symbol: "AVAX-USD", name: "Avalanche" },
   { kind: "crypto", symbol: "DOT-USD", name: "Polkadot" },
   { kind: "crypto", symbol: "LINK-USD", name: "Chainlink" },
-  { kind: "crypto", symbol: "TON-USD", name: "Toncoin" },
+  { kind: "crypto", symbol: "SUI-USD", name: "Sui" },
   { kind: "crypto", symbol: "LTC-USD", name: "Litecoin" },
 ];
 

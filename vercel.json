@@ -3,6 +3,10 @@
     {
       "path": "/api/notify-odds",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/notify-odds",
+      "schedule": "0 16 * * *"
     }
   ]
 }

@@ -2,7 +2,7 @@
 
 import { addFavorite, removeFavorite } from "@/app/actions/favorites";
 import type { FavoriteKind } from "@/lib/favorites";
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 function StarIcon({ filled }: { filled: boolean }) {
   return (
@@ -41,6 +41,10 @@ export function FavoriteButton({
   label?: string;
 }) {
   const [pending, start] = useTransition();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const actionLabel = saved ? "Remover dos favoritos" : "Adicionar aos favoritos";
 
   return (
@@ -68,7 +72,11 @@ export function FavoriteButton({
       {pending ? (
         "…"
       ) : compact ? (
-        <StarIcon filled={saved} />
+        mounted ? (
+          <StarIcon filled={saved} />
+        ) : (
+          <span className="inline-block h-4 w-4" />
+        )
       ) : saved ? (
         label ? `${label} · nos favoritos` : "Nos favoritos"
       ) : label ? (

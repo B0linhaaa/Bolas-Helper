@@ -15,11 +15,16 @@ export const ESPN_HEADERS = {
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
 };
 
-async function espnGet(path: string, fresh = false): Promise<unknown> {
+async function espnGet(
+  path: string,
+  opts: boolean | { fresh?: boolean; revalidate?: number } = false,
+): Promise<unknown> {
+  const fresh = typeof opts === "boolean" ? opts : Boolean(opts.fresh);
+  const revalidate = typeof opts === "boolean" ? 300 : (opts.revalidate ?? 300);
   let lastError: Error | null = null;
   for (const host of ESPN_HOSTS) {
     const res = await fetch(`${host}/${path}`, {
-      ...(fresh ? { cache: "no-store" as const } : { next: { revalidate: 300 } }),
+      ...(fresh ? { cache: "no-store" as const } : { next: { revalidate } }),
       headers: ESPN_HEADERS,
     });
     if (res.ok) return res.json();
@@ -111,10 +116,10 @@ export async function listUpcoming(
   end.setUTCDate(end.getUTCDate() + span - 1);
   const range = `${yyyymmdd(start)}-${yyyymmdd(end)}`;
 
-  const payload = (await espnGet(
-    `${leagueSlug}/scoreboard?dates=${range}&limit=50`,
-    options.fresh,
-  )) as Record<string, unknown>;
+  const payload = (await espnGet(`${leagueSlug}/scoreboard?dates=${range}&limit=50`, {
+    fresh: options.fresh,
+    revalidate: 45,
+  })) as Record<string, unknown>;
 
   const seen = new Set<string>();
   const matches: ListedMatch[] = [];
@@ -156,9 +161,9 @@ export async function listUpcomingForFavoriteTeams(
     jobs.map(async ({ league, teamId }) => {
       try {
         const leagueName = getLeague(league)?.name ?? league;
-        const data = (await espnGet(
-          `${league}/teams/${teamId}/schedule?fixture=true`,
-        )) as Record<string, unknown>;
+        const data = (await espnGet(`${league}/teams/${teamId}/schedule?fixture=true`, {
+          revalidate: 45,
+        })) as Record<string, unknown>;
         return { league, leagueName, data };
       } catch {
         return null;
@@ -177,6 +182,25 @@ export async function listUpcomingForFavoriteTeams(
       seen.add(match.eventId);
       matches.push(match);
     }
+  }
+
+  const teamIds = new Set(teams.map((t) => t.id));
+  const leagueSlugs = [
+    ...new Set(
+      teams.map((t) => (t.league && getLeague(t.league) ? t.league : DEFAULT_LEAGUE)),
+    ),
+  ];
+  const boards = await Promise.all(
+    leagueSlugs.map((slug) => {
+      const name = getLeague(slug)?.name ?? slug;
+      return listUpcoming(slug, name, { days: 2 }).catch(() => [] as ListedMatch[]);
+    }),
+  );
+  for (const match of boards.flat()) {
+    if (seen.has(match.eventId) || match.status === "post") continue;
+    if (!teamIds.has(match.home.id) && !teamIds.has(match.away.id)) continue;
+    seen.add(match.eventId);
+    matches.push(match);
   }
 
   return matches.sort((a, b) => a.start.localeCompare(b.start));
@@ -254,7 +278,9 @@ export async function getMatchDetail(
   leagueName: string,
   eventId: string,
 ): Promise<MatchDetail | null> {
-  const summary = (await espnGet(`${leagueSlug}/summary?event=${eventId}`)) as Record<string, unknown>;
+  const summary = (await espnGet(`${leagueSlug}/summary?event=${eventId}`, {
+    revalidate: 20,
+  })) as Record<string, unknown>;
   const header = summary.header as Record<string, unknown> | undefined;
   if (!header) return null;
 

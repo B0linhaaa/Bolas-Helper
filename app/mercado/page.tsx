@@ -68,9 +68,9 @@ export default async function MercadoPage({
         Mercado
       </h1>
       <p className="mt-2 max-w-xl text-sm text-emerald-900/70 dark:text-emerald-100/70">
-        Ações e crypto em listas separadas. Em cima, a leitura de entrada do
-        dia; depois as conhecidas, as subidas e as descidas. A análise a fundo
-        fica nos favoritos.
+        Ações e crypto em listas separadas. Os teus favoritos ficam em cima,
+        com análise. Depois o pulso do dia: entradas, conhecidas, subidas e
+        descidas.
       </p>
 
       <MarketKindTabs kind={kind} />
@@ -81,95 +81,6 @@ export default async function MercadoPage({
           savedSymbols={[...savedSymbols]}
           loggedIn={Boolean(userId)}
         />
-      </div>
-
-      <section className="mt-10">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-800 dark:text-lime-300">
-          Onde entrar agora
-        </h2>
-        <p className="mt-2 max-w-xl text-sm text-emerald-900/70 dark:text-emerald-100/65">
-          Recuo numa tendência que ainda não partiu. Não é “compra já”: é o
-          sítio onde uma posição pequena faz mais sentido do que nas máximas ou
-          na queda livre.
-        </p>
-        {entries.length === 0 ? (
-          <p className="mt-3 text-sm text-zinc-500">
-            Hoje ninguém neste grupo está num recuo que valha destacar. Não
-            forço nomes só para encher a lista.
-          </p>
-        ) : (
-          <ul className="mt-4 space-y-3">
-            {entries.map((read) => (
-              <MarketEntryCard
-                key={read.quote.symbol}
-                kind={kind}
-                name={nameBySymbol.get(read.quote.symbol) || read.quote.name}
-                read={read}
-                saved={savedSymbols.has(`${kind}:${read.quote.symbol}`)}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="mt-10">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-800 dark:text-lime-300">
-          Mais conhecidas
-        </h2>
-        <ul className="mt-3 divide-y divide-emerald-100 dark:divide-emerald-900/60">
-          {famous.map(({ item, quote }) => (
-            <MarketQuoteRow
-              key={item.symbol}
-              kind={kind}
-              name={item.name}
-              quote={quote}
-              saved={savedSymbols.has(`${kind}:${quote.symbol}`)}
-            />
-          ))}
-        </ul>
-      </section>
-
-      <div className="mt-8 grid items-start gap-x-8 gap-y-6 sm:grid-cols-2">
-        <section>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-800 dark:text-lime-300">
-            Melhor subida
-          </h2>
-          {gainers.length === 0 ? (
-            <p className="mt-3 text-sm text-zinc-500">Ninguém subiu neste grupo hoje.</p>
-          ) : (
-            <ul className="mt-3 divide-y divide-emerald-100 dark:divide-emerald-900/60">
-              {gainers.map((quote) => (
-                <MarketQuoteRow
-                  key={quote.symbol}
-                  kind={kind}
-                  name={nameBySymbol.get(quote.symbol) || quote.name}
-                  quote={quote}
-                  saved={savedSymbols.has(`${kind}:${quote.symbol}`)}
-                />
-              ))}
-            </ul>
-          )}
-        </section>
-        <section>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">
-            Pior descida
-          </h2>
-          {losers.length === 0 ? (
-            <p className="mt-3 text-sm text-zinc-500">Ninguém desceu neste grupo hoje.</p>
-          ) : (
-            <ul className="mt-3 divide-y divide-emerald-100 dark:divide-emerald-900/60">
-              {losers.map((quote) => (
-                <MarketQuoteRow
-                  key={quote.symbol}
-                  kind={kind}
-                  name={nameBySymbol.get(quote.symbol) || quote.name}
-                  quote={quote}
-                  saved={savedSymbols.has(`${kind}:${quote.symbol}`)}
-                />
-              ))}
-            </ul>
-          )}
-        </section>
       </div>
 
       <section className="mt-10">
@@ -270,6 +181,95 @@ export default async function MercadoPage({
           ))}
         </ul>
       </section>
+
+      <section className="mt-10">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-800 dark:text-lime-300">
+          Onde entrar agora
+        </h2>
+        <p className="mt-2 max-w-xl text-sm text-emerald-900/70 dark:text-emerald-100/65">
+          Recuo numa tendência que ainda não partiu. Não é “compra já”: é o
+          sítio onde uma posição pequena faz mais sentido do que nas máximas ou
+          na queda livre.
+        </p>
+        {entries.length === 0 ? (
+          <p className="mt-3 text-sm text-zinc-500">
+            Hoje ninguém neste grupo está num recuo que valha destacar. Não
+            forço nomes só para encher a lista.
+          </p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {entries.map((read) => (
+              <MarketEntryCard
+                key={read.quote.symbol}
+                kind={kind}
+                name={nameBySymbol.get(read.quote.symbol) || read.quote.name}
+                read={read}
+                saved={savedSymbols.has(`${kind}:${read.quote.symbol}`)}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-800 dark:text-lime-300">
+          Mais conhecidas
+        </h2>
+        <ul className="mt-3 divide-y divide-emerald-100 dark:divide-emerald-900/60">
+          {famous.map(({ item, quote }) => (
+            <MarketQuoteRow
+              key={item.symbol}
+              kind={kind}
+              name={item.name}
+              quote={quote}
+              saved={savedSymbols.has(`${kind}:${quote.symbol}`)}
+            />
+          ))}
+        </ul>
+      </section>
+
+      <div className="mt-8 grid items-start gap-x-8 gap-y-6 sm:grid-cols-2">
+        <section>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-800 dark:text-lime-300">
+            Melhor subida
+          </h2>
+          {gainers.length === 0 ? (
+            <p className="mt-3 text-sm text-zinc-500">Ninguém subiu neste grupo hoje.</p>
+          ) : (
+            <ul className="mt-3 divide-y divide-emerald-100 dark:divide-emerald-900/60">
+              {gainers.map((quote) => (
+                <MarketQuoteRow
+                  key={quote.symbol}
+                  kind={kind}
+                  name={nameBySymbol.get(quote.symbol) || quote.name}
+                  quote={quote}
+                  saved={savedSymbols.has(`${kind}:${quote.symbol}`)}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+        <section>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">
+            Pior descida
+          </h2>
+          {losers.length === 0 ? (
+            <p className="mt-3 text-sm text-zinc-500">Ninguém desceu neste grupo hoje.</p>
+          ) : (
+            <ul className="mt-3 divide-y divide-emerald-100 dark:divide-emerald-900/60">
+              {losers.map((quote) => (
+                <MarketQuoteRow
+                  key={quote.symbol}
+                  kind={kind}
+                  name={nameBySymbol.get(quote.symbol) || quote.name}
+                  quote={quote}
+                  saved={savedSymbols.has(`${kind}:${quote.symbol}`)}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
 
       <p className="mt-8 text-xs leading-5 text-zinc-500">
         Preços via feed público. As entradas são uma leitura de recuo no grupo

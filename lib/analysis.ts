@@ -167,7 +167,7 @@ export function analyseMatch(match: MatchDetail): MatchAnalysis {
   add(cands, `Mais de ${formatGoalLine(line)} golos`, pOver, "totals", odds?.over ?? null);
   add(cands, `Menos de ${formatGoalLine(line)} golos`, 1 - pOver, "totals", odds?.under ?? null);
 
-  add(cands, "BTTS sim", model.pBtts, "btts", null);
+  add(cands, "Ambas marcam", model.pBtts, "btts", null);
 
   if (odds?.homeSpread != null && odds.homeSpreadLine != null) {
     add(

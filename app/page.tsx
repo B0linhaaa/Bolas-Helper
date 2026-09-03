@@ -6,6 +6,16 @@ import { listFavorites } from "@/lib/favorites";
 import { DEFAULT_LEAGUE, LEAGUES, getLeague } from "@/lib/leagues";
 import type { ListedMatch } from "@/lib/types";
 
+function sortMatches(matches: ListedMatch[]): ListedMatch[] {
+  const rank = (status: ListedMatch["status"]) =>
+    status === "in" ? 0 : status === "pre" ? 1 : 2;
+  return [...matches].sort((a, b) => {
+    const byStatus = rank(a.status) - rank(b.status);
+    if (byStatus !== 0) return byStatus;
+    return a.start.localeCompare(b.start);
+  });
+}
+
 function formatWhen(iso: string): string {
   if (!iso) return "";
   return new Intl.DateTimeFormat("pt-PT", {
@@ -60,7 +70,7 @@ export default async function Home({
       </p>
       <p className="mt-2 text-xs text-zinc-500">
         {process.env.NOTIFY_EMAIL
-          ? "Email quando as odds abrirem nos jogos das tuas equipas. Em local: `npm run watch-odds`. No Vercel o cron corre de manhã."
+          ? "Email quando as odds abrirem ou mexerem (≥ 5%) nos jogos das tuas equipas. O GitHub Action verifica a cada 20 min."
           : "Para email via SMTP: preenche .env.local e corre `npm run test-email`."}
       </p>
 
@@ -97,7 +107,7 @@ export default async function Home({
       {error ? <p className="mt-8 text-sm text-red-700">{error}</p> : null}
 
       <ul className="mt-8 divide-y divide-emerald-100 dark:divide-emerald-900/60">
-        {matches.map((match) => (
+        {sortMatches(matches).map((match) => (
           <li key={match.eventId}>
             <Link
               href={`/jogo/${encodeURIComponent(match.league)}/${match.eventId}`}
@@ -105,19 +115,28 @@ export default async function Home({
             >
               <div>
                 <p className="text-xs text-emerald-800/70 dark:text-emerald-200/70">
-                  {formatWhen(match.start)}
-                  {mine ? ` · ${match.leagueName}` : ""}
                   {match.status === "in" ? (
-                    <span className="ml-1 font-semibold text-rose-600"> · {match.minute}</span>
+                    <span className="font-semibold text-rose-600">
+                      Ao vivo{match.minute ? ` · ${match.minute}` : ""}
+                    </span>
                   ) : (
-                    ""
+                    formatWhen(match.start)
                   )}
+                  {mine ? ` · ${match.leagueName}` : ""}
                 </p>
                 <p className="mt-1 font-medium text-emerald-950 dark:text-emerald-50">
-                  {match.home.name} - {match.away.name}
+                  {match.home.name}
+                  {match.status !== "pre" &&
+                  match.homeScore != null &&
+                  match.awayScore != null
+                    ? ` ${match.homeScore}–${match.awayScore} `
+                    : " - "}
+                  {match.away.name}
                 </p>
               </div>
-              <span className="text-xs font-medium text-emerald-700 dark:text-lime-300">Abrir</span>
+              <span className="text-xs font-semibold text-emerald-700 dark:text-lime-300">
+                {match.status === "in" ? "Ao vivo" : "Abrir"}
+              </span>
             </Link>
           </li>
         ))}

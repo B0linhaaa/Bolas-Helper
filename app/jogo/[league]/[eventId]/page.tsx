@@ -95,7 +95,14 @@ export default async function JogoPage({
           ) : null}
         </span>
       </h1>
-      {match.status !== "pre" && match.homeScore != null && match.awayScore != null ? (
+      {match.status === "in" ? (
+        <p className="mt-2 text-lg font-semibold text-rose-600">
+          Ao vivo · {match.minute}
+          {match.homeScore != null && match.awayScore != null
+            ? ` · ${match.homeScore}–${match.awayScore}`
+            : ""}
+        </p>
+      ) : match.status !== "pre" && match.homeScore != null && match.awayScore != null ? (
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           {match.homeScore}-{match.awayScore}
         </p>
@@ -115,7 +122,7 @@ export default async function JogoPage({
         </div>
         <div>
           <p className="text-xl font-semibold">{pct(analysis.pBtts)}</p>
-          <p className="text-xs text-zinc-500">P(BTTS) modelo</p>
+          <p className="text-xs text-zinc-500">Prob. ambas marcam</p>
         </div>
         <div>
           <p className="text-xl font-semibold">
@@ -163,10 +170,12 @@ export default async function JogoPage({
                         : "text-lg font-semibold text-rose-800 dark:text-rose-300"
                   }
                 >
-                  {pick.market} - {formatOdd(pick.odd)}
+                  {pick.market} · {formatOdd(pick.odd)}
                   <span className="ml-2 text-sm font-normal text-zinc-500">
-                    {pct(pick.modelProb)}
-                    {pick.oddFromBook ? "" : " · odd justa"}
+                    modelo {pct(pick.modelProb)}
+                    {pick.oddFromBook
+                      ? ` · casa implica ${pct(pick.impliedProb)}`
+                      : " · odd justa do modelo"}
                   </span>
                 </p>
               </li>
