@@ -1,41 +1,36 @@
-# Bolas Helper
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Análise de jogos de futebol com resultados reais e odds de casa. Em cada jogo: aposta mais provável, arriscada e muito arriscada.
+## Getting Started
 
-## Correr
+First, run the development server:
 
 ```bash
-cd bolas-helper
-npm install
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-Abre [http://localhost:3001](http://localhost:3001) se a 3000 já estiver ocupada.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Email quando as odds abrirem (SMTP)
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-1. Abre `bolas-helper/.env.local` e troca os três sítios `o-teu-email@gmail.com` pelo teu Gmail.
-2. Em `SMTP_PASS` mete uma [palavra-passe de aplicação](https://myaccount.google.com/apppasswords) (não a password da conta). É preciso ter 2FA no Gmail.
-3. Reinicia `npm run dev`.
-4. Testa o envio:
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-```bash
-cd bolas-helper
-npm run test-email
-```
+## Learn More
 
-5. Para ficar a vigiar (outro terminal, com o site ligado):
+To learn more about Next.js, take a look at the following resources:
 
-```bash
-npm run watch-odds
-```
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-Outlook: `SMTP_HOST=smtp.office365.com`. Outro servidor: muda `SMTP_HOST` e `SMTP_PORT`.
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## O que faz
+## Deploy on Vercel
 
-- Calendário e forma recente via ESPN
-- Odds DraftKings quando o mercado já abriu
-- Modelo de golos (Poisson) para os três níveis de aposta
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-18+. Análise, não garantia.
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
