@@ -1,16 +1,11 @@
+import { cronAuthorized } from "@/lib/cron-auth";
 import { notifyNewOdds } from "@/lib/odds-watch";
+import { settlePicks } from "@/lib/picks";
+import { notifyQuoteMoves } from "@/lib/quote-watch";
 import { NextResponse } from "next/server";
 
-function authorized(request: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return process.env.NODE_ENV !== "production";
-  const header = request.headers.get("authorization") || "";
-  const query = new URL(request.url).searchParams.get("secret") || "";
-  return header === `Bearer ${secret}` || query === secret;
-}
-
 export async function GET(request: Request) {
-  if (!authorized(request)) {
+  if (!cronAuthorized(request)) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
@@ -27,8 +22,14 @@ export async function GET(request: Request) {
   }
 
   try {
-    const result = await notifyNewOdds();
-    return NextResponse.json(result);
+    const odds = await notifyNewOdds();
+    const quotes = await notifyQuoteMoves().catch((error) => ({
+      error: error instanceof Error ? error.message : "Falha nas cotações",
+    }));
+    const picks = await settlePicks().catch((error) => ({
+      error: error instanceof Error ? error.message : "Falha a fechar picks",
+    }));
+    return NextResponse.json({ odds, quotes, picks });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Falha a verificar odds";
     return NextResponse.json({ error: message }, { status: 500 });

@@ -2,11 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { FavoriteButton } from "@/components/favorite-button";
+import { FormName, lettersFromGames } from "@/components/form-pills";
 import { analyseMatch } from "@/lib/analysis";
 import { getMatchDetail } from "@/lib/espn";
 import { listFavorites } from "@/lib/favorites";
 import { getLeague } from "@/lib/leagues";
 import { formatOdd } from "@/lib/odds";
+import { getPickSnapshot, resultLabel, savePickSnapshot, settleContract } from "@/lib/picks";
+import type { PastGame, Pick, SettleResult } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +56,15 @@ export default async function JogoPage({
   const loggedIn = Boolean(session?.user?.id);
 
   const analysis = analyseMatch(match);
+  if (match.status === "pre") {
+    await savePickSnapshot(match, analysis.picks).catch(() => {});
+  }
+  const snapshot = await getPickSnapshot(match.eventId).catch(() => null);
+  const frozen = Boolean(snapshot && match.status !== "pre" && snapshot.picks.length > 0);
+  const shownPicks = frozen && snapshot ? snapshot.picks : analysis.picks;
+  const scoreHome = match.homeScore ?? snapshot?.homeScore ?? null;
+  const scoreAway = match.awayScore ?? snapshot?.awayScore ?? null;
+  const canSettle = match.status === "post" && scoreHome != null && scoreAway != null;
   const book = match.odds;
 
   return (
@@ -78,11 +90,11 @@ export default async function JogoPage({
               extra={{ league: slug, logo: match.home.logo }}
             />
           ) : null}
-          <span className="truncate">{match.home.name}</span>
+          <FormName name={match.home.name} letters={lettersFromGames(match.homeForm)} />
         </span>
         <span className="font-normal text-emerald-700/70 dark:text-lime-200/50">–</span>
         <span className="inline-flex min-w-0 items-center gap-1">
-          <span className="truncate">{match.away.name}</span>
+          <FormName name={match.away.name} letters={lettersFromGames(match.awayForm)} />
           {loggedIn ? (
             <FavoriteButton
               compact
@@ -148,37 +160,29 @@ export default async function JogoPage({
       <p className="mt-1 text-xs text-zinc-500">
         Três níveis: o mais provável, um cenário possível, e um long shot.
         Não são para apostar os três ao mesmo tempo.
+        {frozen
+          ? " Estas linhas ficaram congeladas antes do jogo."
+          : match.status === "post"
+            ? " Sem snapshot pré-jogo — o modelo foi calculado depois do resultado, trata isto com desconfiança."
+            : ""}
       </p>
 
-      {analysis.picks.length > 0 ? (
+      {shownPicks.length > 0 ? (
         <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-4 dark:border-emerald-800 dark:bg-emerald-950/40">
           <p className="font-semibold">
             {match.home.name} - {match.away.name}
           </p>
           <ul className="mt-3 space-y-3">
-            {analysis.picks.map((pick) => (
-              <li key={pick.risk}>
-                <p className="text-[11px] uppercase tracking-wide text-zinc-500">
-                  {pick.riskLabel}
-                </p>
-                <p
-                  className={
-                    pick.risk === "likely"
-                      ? "text-lg font-semibold text-emerald-800 dark:text-lime-300"
-                      : pick.risk === "risky"
-                        ? "text-lg font-semibold text-amber-700 dark:text-amber-300"
-                        : "text-lg font-semibold text-rose-800 dark:text-rose-300"
-                  }
-                >
-                  {pick.market} · {formatOdd(pick.odd)}
-                  <span className="ml-2 text-sm font-normal text-zinc-500">
-                    modelo {pct(pick.modelProb)}
-                    {pick.oddFromBook
-                      ? ` · casa implica ${pct(pick.impliedProb)}`
-                      : " · odd justa do modelo"}
-                  </span>
-                </p>
-              </li>
+            {shownPicks.map((pick) => (
+              <PickRow
+                key={pick.risk}
+                pick={pick}
+                result={
+                  canSettle && scoreHome != null && scoreAway != null && pick.contract
+                    ? settleContract(pick, scoreHome, scoreAway)
+                    : null
+                }
+              />
             ))}
           </ul>
           <p className="mt-3 text-xs text-zinc-500">
@@ -189,9 +193,9 @@ export default async function JogoPage({
         </div>
       ) : null}
 
-      {analysis.picks.length > 0 ? (
+      {shownPicks.length > 0 ? (
         <ul className="mt-4 space-y-3">
-          {analysis.picks.map((pick) => (
+          {shownPicks.map((pick) => (
             <li key={`${pick.risk}-why`} className="text-sm leading-6">
               <span className="font-semibold">
                 {pick.riskLabel}: {pick.market} · {formatOdd(pick.odd)}
@@ -216,12 +220,42 @@ export default async function JogoPage({
   );
 }
 
+function PickRow({ pick, result }: { pick: Pick; result: SettleResult | null }) {
+  const tone =
+    pick.risk === "likely"
+      ? "text-lg font-semibold text-emerald-800 dark:text-lime-300"
+      : pick.risk === "risky"
+        ? "text-lg font-semibold text-amber-700 dark:text-amber-300"
+        : "text-lg font-semibold text-rose-800 dark:text-rose-300";
+  const resultTone =
+    result === "hit"
+      ? "text-emerald-700 dark:text-lime-300"
+      : result === "miss"
+        ? "text-rose-700 dark:text-rose-300"
+        : "text-amber-700 dark:text-amber-300";
+  return (
+    <li>
+      <p className="text-[11px] uppercase tracking-wide text-zinc-500">{pick.riskLabel}</p>
+      <p className={tone}>
+        {pick.market} · {formatOdd(pick.odd)}
+        <span className="ml-2 text-sm font-normal text-zinc-500">
+          modelo {pct(pick.modelProb)}
+          {pick.oddFromBook ? ` · casa implica ${pct(pick.impliedProb)}` : " · odd justa do modelo"}
+        </span>
+        {result ? (
+          <span className={`ml-2 text-sm font-semibold ${resultTone}`}>{resultLabel(result)}</span>
+        ) : null}
+      </p>
+    </li>
+  );
+}
+
 function FormTable({
   title,
   games,
 }: {
   title: string;
-  games: { date: string; competition: string; opponent: string; venue: string; goalsFor: number; goalsAgainst: number }[];
+  games: PastGame[];
 }) {
   if (games.length === 0) {
     return (
@@ -230,7 +264,9 @@ function FormTable({
   }
   return (
     <div className="mt-4">
-      <p className="text-sm font-medium">{title}</p>
+      <p className="text-sm font-medium">
+        <FormName name={title} letters={lettersFromGames(games)} />
+      </p>
       <table className="mt-2 w-full text-left text-xs">
         <thead className="text-zinc-500">
           <tr>

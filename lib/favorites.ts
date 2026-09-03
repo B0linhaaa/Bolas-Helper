@@ -100,22 +100,57 @@ export type TeamWatcher = {
   userId: string;
   email: string;
   teamId: string;
+  league?: string;
 };
 
 export async function listTeamWatchers(): Promise<TeamWatcher[]> {
   const db = sql();
   const fallback = process.env.NOTIFY_EMAIL?.trim().toLowerCase() ?? "";
   const rows = (await db`
-    SELECT f.user_id, f.symbol, COALESCE(NULLIF(u.email, ''), ${fallback}) AS email
+    SELECT f.user_id, f.symbol, f.extra, COALESCE(NULLIF(u.email, ''), ${fallback}) AS email
     FROM favorites f
     LEFT JOIN users u ON u.id = f.user_id
     WHERE f.kind = 'team'
-  `) as { user_id: string; symbol: string; email: string }[];
+  `) as { user_id: string; symbol: string; extra: Favorite["extra"] | string; email: string }[];
+  return rows
+    .filter((row) => row.email)
+    .map((row) => {
+      const extra =
+        typeof row.extra === "string" ? (JSON.parse(row.extra) as Favorite["extra"]) : row.extra;
+      return {
+        userId: row.user_id,
+        email: row.email,
+        teamId: row.symbol,
+        league: extra?.league,
+      };
+    });
+}
+
+export type AssetWatcher = {
+  userId: string;
+  email: string;
+  kind: "stock" | "crypto";
+  symbol: string;
+  name: string;
+};
+
+export async function listAssetWatchers(): Promise<AssetWatcher[]> {
+  const db = sql();
+  const fallback = process.env.NOTIFY_EMAIL?.trim().toLowerCase() ?? "";
+  const rows = (await db`
+    SELECT f.user_id, f.kind, f.symbol, f.name,
+           COALESCE(NULLIF(u.email, ''), ${fallback}) AS email
+    FROM favorites f
+    LEFT JOIN users u ON u.id = f.user_id
+    WHERE f.kind IN ('stock', 'crypto')
+  `) as { user_id: string; kind: "stock" | "crypto"; symbol: string; name: string; email: string }[];
   return rows
     .filter((row) => row.email)
     .map((row) => ({
       userId: row.user_id,
       email: row.email,
-      teamId: row.symbol,
+      kind: row.kind,
+      symbol: row.symbol,
+      name: row.name,
     }));
 }

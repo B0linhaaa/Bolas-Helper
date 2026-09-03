@@ -69,8 +69,8 @@ export default async function MercadoPage({
       </h1>
       <p className="mt-2 max-w-xl text-sm text-emerald-900/70 dark:text-emerald-100/70">
         Ações e crypto em listas separadas. Os teus favoritos ficam em cima,
-        com análise. Depois o pulso do dia: entradas, conhecidas, subidas e
-        descidas.
+        com análise. Email se um favorito mexer ≥ 5% no dia. Depois o pulso:
+        entradas, conhecidas, subidas e descidas.
       </p>
 
       <MarketKindTabs kind={kind} />

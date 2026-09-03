@@ -1,8 +1,8 @@
 import { formatGoalLine, impliedProb } from "./odds";
 import { fitPoisson } from "./model";
-import type { MatchAnalysis, MatchDetail, PastGame, Pick, RiskTier } from "./types";
+import type { MatchAnalysis, MatchDetail, PastGame, Pick, PickContract, RiskTier } from "./types";
 
-type Family = "1x2" | "totals" | "btts" | "spread";
+type Family = PickContract["family"];
 
 type Candidate = {
   market: string;
@@ -10,6 +10,7 @@ type Candidate = {
   oddFromBook: boolean;
   modelProb: number;
   family: Family;
+  contract: PickContract;
 };
 
 const RISK_LABEL: Record<RiskTier, string> = {
@@ -73,14 +74,15 @@ function add(
   list: Candidate[],
   market: string,
   modelProb: number,
-  family: Family,
+  contract: PickContract,
   bookOdd: number | null,
 ) {
   if (modelProb < 0.06 || modelProb > 0.97) return;
   list.push({
     market,
     modelProb,
-    family,
+    family: contract.family,
+    contract,
     odd: bookOdd ?? fairOdd(modelProb),
     oddFromBook: bookOdd != null && bookOdd >= 1.01,
   });
@@ -104,6 +106,7 @@ function toPick(c: Candidate, risk: RiskTier, why: string): Pick {
     why,
     risk,
     riskLabel: RISK_LABEL[risk],
+    contract: c.contract,
   };
 }
 
@@ -158,23 +161,23 @@ export function analyseMatch(match: MatchDetail): MatchAnalysis {
   const odds = match.odds;
   const cands: Candidate[] = [];
 
-  add(cands, `${match.home.name} vence`, model.pHome, "1x2", odds?.home ?? null);
-  add(cands, "Empate", model.pDraw, "1x2", odds?.draw ?? null);
-  add(cands, `${match.away.name} vence`, model.pAway, "1x2", odds?.away ?? null);
+  add(cands, `${match.home.name} vence`, model.pHome, { family: "1x2", side: "home" }, odds?.home ?? null);
+  add(cands, "Empate", model.pDraw, { family: "1x2", side: "draw" }, odds?.draw ?? null);
+  add(cands, `${match.away.name} vence`, model.pAway, { family: "1x2", side: "away" }, odds?.away ?? null);
 
   const line = odds?.overLine ?? 2.5;
   const pOver = model.pOver(line);
-  add(cands, `Mais de ${formatGoalLine(line)} golos`, pOver, "totals", odds?.over ?? null);
-  add(cands, `Menos de ${formatGoalLine(line)} golos`, 1 - pOver, "totals", odds?.under ?? null);
+  add(cands, `Mais de ${formatGoalLine(line)} golos`, pOver, { family: "totals", side: "over", line }, odds?.over ?? null);
+  add(cands, `Menos de ${formatGoalLine(line)} golos`, 1 - pOver, { family: "totals", side: "under", line }, odds?.under ?? null);
 
-  add(cands, "Ambas marcam", model.pBtts, "btts", null);
+  add(cands, "Ambas marcam", model.pBtts, { family: "btts", side: "yes" }, null);
 
   if (odds?.homeSpread != null && odds.homeSpreadLine != null) {
     add(
       cands,
       `${match.home.name} ${odds.homeSpreadLine > 0 ? "+" : ""}${odds.homeSpreadLine}`,
       model.pHomeCover(odds.homeSpreadLine),
-      "spread",
+      { family: "spread", side: "home", line: odds.homeSpreadLine },
       odds.homeSpread,
     );
   }

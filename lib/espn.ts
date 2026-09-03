@@ -1,6 +1,7 @@
 import { espnOddsToBook } from "./odds";
-import { DEFAULT_LEAGUE, getLeague } from "./leagues";
-import type { ListedMatch, MatchDetail, MatchStatus, PastGame } from "./types";
+import { DEFAULT_LEAGUE, LEAGUES, getLeague } from "./leagues";
+import { isLisbonToday } from "./time";
+import type { FormLetter, ListedMatch, MatchDetail, MatchStatus, PastGame } from "./types";
 
 const ESPN_HOSTS = [
   "https://site.web.api.espn.com/apis/site/v2/sports/soccer",
@@ -61,6 +62,13 @@ function statusFrom(raw: unknown): { status: MatchStatus; minute: string } {
   return { status: "pre", minute: "" };
 }
 
+function parseForm(raw: unknown): FormLetter[] {
+  const letters = String(raw ?? "")
+    .toUpperCase()
+    .replace(/[^WDL]/g, "");
+  return [...letters].filter((letter): letter is FormLetter => letter === "W" || letter === "D" || letter === "L").slice(-5);
+}
+
 function parseEvent(event: Record<string, unknown>, leagueSlug: string, leagueName: string): ListedMatch | null {
   const competitions = event.competitions as Record<string, unknown>[] | undefined;
   const comp = competitions?.[0] ?? event;
@@ -101,6 +109,8 @@ function parseEvent(event: Record<string, unknown>, leagueSlug: string, leagueNa
     minute,
     homeScore: scoreValue(home.score),
     awayScore: scoreValue(away.score),
+    homeRecent: parseForm(home.form),
+    awayRecent: parseForm(away.form),
     odds: espnOddsToBook(oddsRaw),
   };
 }
@@ -108,10 +118,11 @@ function parseEvent(event: Record<string, unknown>, leagueSlug: string, leagueNa
 export async function listUpcoming(
   leagueSlug: string,
   leagueName: string,
-  options: { days?: number; fresh?: boolean } = {},
+  options: { days?: number; fresh?: boolean; includePost?: boolean } = {},
 ): Promise<ListedMatch[]> {
   const span = options.days ?? 8;
   const start = new Date();
+  if (options.includePost) start.setUTCDate(start.getUTCDate() - 1);
   const end = new Date();
   end.setUTCDate(end.getUTCDate() + span - 1);
   const range = `${yyyymmdd(start)}-${yyyymmdd(end)}`;
@@ -128,10 +139,30 @@ export async function listUpcoming(
     const match = parseEvent(event, leagueSlug, leagueName);
     if (!match || seen.has(match.eventId)) continue;
     seen.add(match.eventId);
-    if (match.status === "post") continue;
+    if (match.status === "post") {
+      if (!options.includePost || !isLisbonToday(match.start)) continue;
+    }
     matches.push(match);
   }
 
+  return matches.sort((a, b) => a.start.localeCompare(b.start));
+}
+
+export async function listAllUpcoming(
+  options: { days?: number; fresh?: boolean; includePost?: boolean } = {},
+): Promise<ListedMatch[]> {
+  const batches = await Promise.all(
+    LEAGUES.map((league) =>
+      listUpcoming(league.slug, league.name, options).catch(() => [] as ListedMatch[]),
+    ),
+  );
+  const seen = new Set<string>();
+  const matches: ListedMatch[] = [];
+  for (const match of batches.flat()) {
+    if (seen.has(match.eventId)) continue;
+    seen.add(match.eventId);
+    matches.push(match);
+  }
   return matches.sort((a, b) => a.start.localeCompare(b.start));
 }
 
@@ -144,6 +175,7 @@ const TEAM_FIXTURE_LEAGUES = [
 
 export async function listUpcomingForFavoriteTeams(
   teams: { id: string; league?: string }[],
+  options: { includePost?: boolean } = {},
 ): Promise<ListedMatch[]> {
   const jobs: { league: string; teamId: string }[] = [];
   const seenJob = new Set<string>();
@@ -178,7 +210,10 @@ export async function listUpcomingForFavoriteTeams(
     const events = (payload.data.events as Record<string, unknown>[]) ?? [];
     for (const event of events) {
       const match = parseEvent(event, payload.league, payload.leagueName);
-      if (!match || seen.has(match.eventId) || match.status === "post") continue;
+      if (!match || seen.has(match.eventId)) continue;
+      if (match.status === "post") {
+        if (!options.includePost || !isLisbonToday(match.start)) continue;
+      }
       seen.add(match.eventId);
       matches.push(match);
     }
@@ -193,12 +228,23 @@ export async function listUpcomingForFavoriteTeams(
   const boards = await Promise.all(
     leagueSlugs.map((slug) => {
       const name = getLeague(slug)?.name ?? slug;
-      return listUpcoming(slug, name, { days: 2 }).catch(() => [] as ListedMatch[]);
+      return listUpcoming(slug, name, { days: 2, includePost: options.includePost }).catch(
+        () => [] as ListedMatch[],
+      );
     }),
   );
   for (const match of boards.flat()) {
-    if (seen.has(match.eventId) || match.status === "post") continue;
+    if (match.status === "post" && (!options.includePost || !isLisbonToday(match.start))) continue;
     if (!teamIds.has(match.home.id) && !teamIds.has(match.away.id)) continue;
+    const existing = matches.find((item) => item.eventId === match.eventId);
+    if (existing) {
+      if (existing.homeRecent.length === 0) existing.homeRecent = match.homeRecent;
+      if (existing.awayRecent.length === 0) existing.awayRecent = match.awayRecent;
+      if (existing.homeScore == null) existing.homeScore = match.homeScore;
+      if (existing.awayScore == null) existing.awayScore = match.awayScore;
+      if (existing.status === "pre" && match.status !== "pre") existing.status = match.status;
+      continue;
+    }
     seen.add(match.eventId);
     matches.push(match);
   }

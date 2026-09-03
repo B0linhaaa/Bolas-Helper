@@ -16,16 +16,59 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0c1612;
-    --foreground: #ecf4ee;
+    --background: #0f1f19;
+    --foreground: #e4f0e8;
   }
 }
 
 body {
   background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(198, 240, 108, 0.18), transparent 50%),
-    radial-gradient(900px 400px at 100% 0%, rgba(16, 185, 129, 0.12), transparent 45%),
+    radial-gradient(1100px 600px at 5% -8%, rgba(198, 240, 108, 0.14), transparent 55%),
+    radial-gradient(900px 500px at 95% 10%, rgba(16, 185, 129, 0.10), transparent 50%),
+    radial-gradient(600px 600px at 50% 100%, rgba(16, 185, 129, 0.06), transparent 60%),
     var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Loading spinner */
+@keyframes bh-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes bh-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+@keyframes bh-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.bh-spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid rgba(198, 240, 108, 0.2);
+  border-top-color: var(--lime);
+  animation: bh-spin 0.7s linear infinite;
+}
+.bh-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lime);
+  animation: bh-bounce 0.6s ease-in-out infinite;
+}
+.bh-dot:nth-child(2) { animation-delay: 0.15s; }
+.bh-dot:nth-child(3) { animation-delay: 0.3s; }
+.bh-bar {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(198,240,108,0.15) 25%, rgba(198,240,108,0.35) 50%, rgba(198,240,108,0.15) 75%);
+  background-size: 200% 100%;
+  animation: bh-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes bh-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }

@@ -1,5 +1,15 @@
 export type MatchStatus = "pre" | "in" | "post";
 
+export type FormLetter = "W" | "D" | "L";
+
+export type PickContract =
+  | { family: "1x2"; side: "home" | "draw" | "away" }
+  | { family: "totals"; side: "over" | "under"; line: number }
+  | { family: "btts"; side: "yes" }
+  | { family: "spread"; side: "home"; line: number };
+
+export type SettleResult = "hit" | "miss" | "push";
+
 export type BookOdds = {
   bookmaker: string;
   home: number | null;
@@ -35,6 +45,8 @@ export type ListedMatch = {
   minute: string;
   homeScore: number | null;
   awayScore: number | null;
+  homeRecent: FormLetter[];
+  awayRecent: FormLetter[];
   odds: BookOdds | null;
 };
 
@@ -55,6 +67,7 @@ export type Pick = {
   why: string;
   risk: RiskTier;
   riskLabel: string;
+  contract: PickContract;
 };
 
 export type MatchAnalysis = {

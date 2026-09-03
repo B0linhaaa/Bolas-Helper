@@ -1,10 +1,10 @@
 import { sql } from "./db";
 import { sendNotifyEmail } from "./email";
-import { listUpcoming } from "./espn";
+import { listAllUpcoming } from "./espn";
 import { listTeamWatchers } from "./favorites";
-import { LEAGUES } from "./leagues";
 import { favoriteOddsEmail, type OddsAlert } from "./odds-email";
 import { hasBookOdds } from "./odds";
+import { snapshotTodayPicks } from "./picks";
 import type { ListedMatch } from "./types";
 
 type WatchRow = {
@@ -49,22 +49,6 @@ async function ensureWatchSchema(): Promise<void> {
   await db`ALTER TABLE odds_watch ADD COLUMN IF NOT EXISTS home_odd double precision`;
   await db`ALTER TABLE odds_watch ADD COLUMN IF NOT EXISTS over_odd double precision`;
   await db`ALTER TABLE odds_watch ADD COLUMN IF NOT EXISTS last_alert_at timestamptz`;
-}
-
-async function listAllUpcoming(fresh: boolean): Promise<ListedMatch[]> {
-  const batches = await Promise.all(
-    LEAGUES.map((league) =>
-      listUpcoming(league.slug, league.name, { days: 10, fresh }).catch(() => [] as ListedMatch[]),
-    ),
-  );
-  const seen = new Set<string>();
-  const matches: ListedMatch[] = [];
-  for (const match of batches.flat()) {
-    if (seen.has(match.eventId)) continue;
-    seen.add(match.eventId);
-    matches.push(match);
-  }
-  return matches;
 }
 
 async function loadWatch(): Promise<Map<string, WatchRow>> {
@@ -133,7 +117,7 @@ export async function previewFavoriteOddsEmail(): Promise<{
 }> {
   const watchers = await listTeamWatchers();
   const teamIds = new Set(watchers.map((w) => w.teamId));
-  const matches = (await listAllUpcoming(true)).filter(
+  const matches = (await listAllUpcoming({ days: 10, fresh: true })).filter(
     (match) => involvesTeam(match, teamIds) && hasBookOdds(match.odds),
   );
   if (matches.length === 0) {
@@ -166,11 +150,14 @@ export async function notifyNewOdds(): Promise<{
   opened: number;
   moved: number;
   emailed: boolean;
+  snapshots: number;
 }> {
   await ensureWatchSchema();
   const watchers = await listTeamWatchers();
   const teamIds = new Set(watchers.map((w) => w.teamId));
-  const matches = (await listAllUpcoming(true)).filter((match) => involvesTeam(match, teamIds));
+  const matches = (await listAllUpcoming({ days: 10, fresh: true })).filter((match) =>
+    involvesTeam(match, teamIds),
+  );
   const snapshot = await loadWatch();
   const alerts: OddsAlert[] = [];
   const nextRows: WatchRow[] = [];
@@ -238,10 +225,12 @@ export async function notifyNewOdds(): Promise<{
   }
 
   await saveWatch(nextRows, liveIds, [...snapshot.keys()]);
+  const snapshots = await snapshotTodayPicks(matches).catch(() => 0);
   return {
     checked: matches.length,
     opened: alerts.filter((a) => a.reason === "opened").length,
     moved: alerts.filter((a) => a.reason === "moved").length,
     emailed,
+    snapshots,
   };
 }
