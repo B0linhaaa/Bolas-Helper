@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Bolas Helper",
-  description: "Análise de jogos, ações e crypto. Favoritos teus, não palpite inventado.",
+  description: "Assistente de análise de jogos de futebol e mercado. Abres e vês o que já foi lido.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

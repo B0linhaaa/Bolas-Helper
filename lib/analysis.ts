@@ -1,4 +1,4 @@
-import { formatGoalLine, impliedProb } from "./odds";
+import { formatGoalLine, impliedProb, removeVig } from "./odds";
 import { fitPoisson } from "./model";
 import type { MatchAnalysis, MatchDetail, PastGame, Pick, PickContract, RiskTier } from "./types";
 
@@ -38,6 +38,83 @@ function overCount(games: PastGame[], n: number): number {
 
 function bttsCount(games: PastGame[]): number {
   return games.filter((g) => g.goalsFor > 0 && g.goalsAgainst > 0).length;
+}
+
+function avgGoals(games: PastGame[], key: "goalsFor" | "goalsAgainst"): number {
+  if (games.length === 0) return 0;
+  return games.reduce((sum, game) => sum + game[key], 0) / games.length;
+}
+
+function formSnippet(name: string, games: PastGame[]): string {
+  const sample = games.slice(0, 5);
+  if (sample.length === 0) return `${name} sem amostra recente`;
+  const seq = sample
+    .map((game) => (game.result === "W" ? "V" : game.result === "D" ? "E" : "D"))
+    .join("");
+  return `${name} ${seq} (média ${avgGoals(sample, "goalsFor").toFixed(1)} marcados, ${avgGoals(sample, "goalsAgainst").toFixed(1)} sofridos)`;
+}
+
+function pct(n: number): string {
+  return `${Math.round(n * 100)}%`;
+}
+
+type ExplainCtx = {
+  match: MatchDetail;
+  homeGames: PastGame[];
+  awayGames: PastGame[];
+  lambdaHome: number;
+  lambdaAway: number;
+  bookShare: Map<Candidate, number>;
+};
+
+function explainPick(c: Candidate, risk: RiskTier, ctx: ExplainCtx): string {
+  const { match, homeGames, awayGames, lambdaHome, lambdaAway, bookShare } = ctx;
+  const h = match.home.name;
+  const a = match.away.name;
+  const homeBit = formSnippet(h, homeGames);
+  const awayBit = formSnippet(a, awayGames);
+  const xg = `Golos esperados neste jogo: ${lambdaHome.toFixed(1)}–${lambdaAway.toFixed(1)}.`;
+  const bookP = bookShare.get(c);
+  const bookBit = c.oddFromBook
+    ? `Odd ${c.odd.toFixed(2)} (${bookP != null ? pct(bookP) : pct(impliedProb(c.odd))} implícito).`
+    : `Sem odd de casa; ${c.odd.toFixed(2)} é a justa do modelo (${pct(c.modelProb)}).`;
+  const modelBit = `O recorte de golos dá ${pct(c.modelProb)} a este mercado.`;
+
+  if (c.contract.family === "1x2") {
+    const subject =
+      c.contract.side === "home" ? h : c.contract.side === "away" ? a : "o empate";
+    const form =
+      c.contract.side === "home"
+        ? `${homeBit}. ${awayBit}.`
+        : c.contract.side === "away"
+          ? `${awayBit}. ${homeBit}.`
+          : `${homeBit}. ${awayBit}.`;
+    if (risk === "likely") {
+      const tension =
+        bookP != null && Math.abs(c.modelProb - bookP) > 0.12
+          ? ` O modelo e a casa não batem certo — a linha base segue a odd curta, não os últimos 5 jogos sozinhos.`
+          : ` Forma recente e mercado apontam para o mesmo lado.`;
+      return `${subject} é o cenário base. ${bookBit} ${form} ${xg} ${modelBit}${tension}`;
+    }
+    if (risk === "longshot") {
+      return `${subject} a ${c.odd.toFixed(2)} é o long shot. ${bookBit} ${form} ${modelBit} Odd alta: falha na maior parte das vezes.`;
+    }
+    return `${c.market} a ${c.odd.toFixed(2)}. ${form} ${modelBit} Crível, mas já não é o cenário base.`;
+  }
+
+  if (c.contract.family === "totals") {
+    const line = c.contract.line;
+    const homePlus = overCount(homeGames, 2);
+    const awayPlus = overCount(awayGames, 2);
+    const side = c.contract.side === "over" ? `mais de ${formatGoalLine(line)}` : `menos de ${formatGoalLine(line)}`;
+    return `${side} golos a ${c.odd.toFixed(2)}. ${h} fez 2+ em ${homePlus}/${Math.max(homeGames.length, 1)}; ${a} em ${awayPlus}/${Math.max(awayGames.length, 1)}. ${xg} ${modelBit}`;
+  }
+
+  if (c.contract.family === "btts") {
+    return `Ambas marcam a ${c.odd.toFixed(2)}. BTTS em ${bttsCount(homeGames)}/${Math.max(homeGames.length, 1)} dos jogos do ${h} e ${bttsCount(awayGames)}/${Math.max(awayGames.length, 1)} do ${a}. ${modelBit}`;
+  }
+
+  return `${c.market} a ${c.odd.toFixed(2)}. ${homeBit}. ${awayBit}. ${modelBit}`;
 }
 
 function writeAnalysis(match: MatchDetail, leagueGamesHome: PastGame[], leagueGamesAway: PastGame[]): string {
@@ -110,11 +187,37 @@ function toPick(c: Candidate, risk: RiskTier, why: string): Pick {
   };
 }
 
-function selectTiers(cands: Candidate[]): Pick[] {
+function fairBook1x2(cands: Candidate[]): Map<Candidate, number> {
+  const priced = cands.filter((c) => c.family === "1x2" && c.oddFromBook);
+  const map = new Map<Candidate, number>();
+  if (priced.length < 2) return map;
+  const fair = removeVig(priced.map((c) => impliedProb(c.odd)));
+  priced.forEach((c, i) => map.set(c, fair[i] ?? impliedProb(c.odd)));
+  return map;
+}
+
+function likelyScore(c: Candidate, bookShare: Map<Candidate, number>): number {
+  const book = bookShare.get(c);
+  if (book == null) return c.modelProb;
+  return 0.3 * c.modelProb + 0.7 * book;
+}
+
+function selectTiers(
+  cands: Candidate[],
+  ctx: Omit<ExplainCtx, "bookShare">,
+): Pick[] {
   if (cands.length === 0) return [];
   const byP = [...cands].sort((a, b) => b.modelProb - a.modelProb);
-  const oneXtwo = byP.filter((c) => c.family === "1x2");
-  const likely = oneXtwo[0] ?? byP[0];
+  const oneXtwo = cands.filter((c) => c.family === "1x2");
+  const bookShare = fairBook1x2(cands);
+  const explainCtx: ExplainCtx = { ...ctx, bookShare };
+  const likelyPool = oneXtwo.length > 0 ? oneXtwo : cands;
+  let likely = [...likelyPool].sort((a, b) => likelyScore(b, bookShare) - likelyScore(a, bookShare))[0];
+  if (!likely) return [];
+  const bookFav = [...oneXtwo.filter((c) => c.oddFromBook)].sort((a, b) => a.odd - b.odd)[0];
+  if (bookFav && likely.oddFromBook && likely.odd >= 3 && bookFav.odd < likely.odd) {
+    likely = bookFav;
+  }
 
   const afterLikely = byP.filter((c) => c.market !== likely.market && !isOpposite(c, likely));
 
@@ -133,17 +236,9 @@ function selectTiers(cands: Candidate[]): Pick[] {
     [...longBand].sort((a, b) => b.odd - a.odd)[0]
     || [...afterRisky].sort((a, b) => a.modelProb - b.modelProb)[0];
 
-  const whyLikely = `${RISK_LABEL.likely}: o modelo dá ${Math.round(likely.modelProb * 100)}% a este mercado.`;
-  const whyRisky = risky
-    ? `${RISK_LABEL.risky}: ainda é crível (${Math.round(risky.modelProb * 100)}%), mas já não é o cenário base.`
-    : "";
-  const whyLong = longshot
-    ? `${RISK_LABEL.longshot}: ${Math.round(longshot.modelProb * 100)}% — possível, pouco frequente. Odd alta, falha muitas vezes.`
-    : "";
-
-  const out: Pick[] = [toPick(likely, "likely", whyLikely)];
-  if (risky) out.push(toPick(risky, "risky", whyRisky));
-  if (longshot) out.push(toPick(longshot, "longshot", whyLong));
+  const out: Pick[] = [toPick(likely, "likely", explainPick(likely, "likely", explainCtx))];
+  if (risky) out.push(toPick(risky, "risky", explainPick(risky, "risky", explainCtx)));
+  if (longshot) out.push(toPick(longshot, "longshot", explainPick(longshot, "longshot", explainCtx)));
   return out;
 }
 
@@ -182,6 +277,28 @@ export function analyseMatch(match: MatchDetail): MatchAnalysis {
     );
   }
 
+  const ctx = {
+    match,
+    homeGames,
+    awayGames,
+    lambdaHome: model.lambdaHome + alreadyH,
+    lambdaAway: model.lambdaAway + alreadyA,
+  };
+  const bookShare = fairBook1x2(cands);
+  const explainCtx: ExplainCtx = { ...ctx, bookShare };
+  const priced = cands.filter((c) => c.family === "1x2");
+  const favOdd = Math.min(...priced.filter((c) => c.oddFromBook).map((c) => c.odd), Number.POSITIVE_INFINITY);
+  const oddsNotes = priced.map((c) => {
+    const risk: RiskTier =
+      c.oddFromBook && c.odd === favOdd ? "likely" : c.odd >= 3.2 ? "longshot" : "risky";
+    return {
+      market: c.market,
+      odd: c.odd,
+      modelProb: c.modelProb,
+      why: explainPick(c, risk, explainCtx),
+    };
+  });
+
   return {
     text: writeAnalysis(match, homeGames, awayGames),
     lambdaHome: model.lambdaHome + alreadyH,
@@ -191,6 +308,7 @@ export function analyseMatch(match: MatchDetail): MatchAnalysis {
     pAway: model.pAway,
     pOver25: model.pOver25,
     pBtts: model.pBtts,
-    picks: selectTiers(cands),
+    picks: selectTiers(cands, ctx),
+    oddsNotes,
   };
 }

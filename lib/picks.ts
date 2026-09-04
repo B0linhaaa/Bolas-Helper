@@ -135,7 +135,13 @@ export async function savePickSnapshot(match: MatchDetail, picks: Pick[]): Promi
       ${match.home.id}, ${match.away.id}, ${match.home.name}, ${match.away.name},
       ${JSON.stringify(picks)}::jsonb
     )
-    ON CONFLICT (event_id) DO NOTHING
+    ON CONFLICT (event_id) DO UPDATE SET
+      picks = EXCLUDED.picks,
+      name = EXCLUDED.name,
+      start_at = EXCLUDED.start_at,
+      home_name = EXCLUDED.home_name,
+      away_name = EXCLUDED.away_name
+    WHERE pick_snapshots.settled = false
   `;
 }
 
@@ -190,7 +196,7 @@ export async function snapshotTodayPicks(matches: ListedMatch[]): Promise<number
   let saved = 0;
   for (const match of due) {
     const existing = await getPickSnapshot(match.eventId);
-    if (existing) continue;
+    if (existing?.settled) continue;
     const detail = await getMatchDetail(match.league, match.leagueName, match.eventId).catch(() => null);
     if (!detail) continue;
     const picks = analyseMatch(detail).picks;

@@ -8,7 +8,7 @@ export default function Loading() {
         <span className="bh-dot" />
       </div>
       <p className="mt-5 text-sm font-medium tracking-wide text-emerald-800/70 dark:text-emerald-200/70">
-        A carregar jogos…
+        A carregar o briefing…
       </p>
 
       <div className="mt-12 w-full space-y-5">

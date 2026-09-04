@@ -22,3 +22,15 @@ export function lisbonYesterdayKey(): string {
   date.setUTCDate(date.getUTCDate() - 1);
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
 }
+
+export function formatWhenLisbon(iso: string): string {
+  if (!iso) return "";
+  return new Intl.DateTimeFormat("pt-PT", {
+    timeZone: LISBON,
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(iso));
+}

@@ -123,6 +123,9 @@ export default async function JogoPage({
       <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-emerald-800 dark:text-lime-300">
         Análise
       </h2>
+      <p className="mt-1 text-xs text-zinc-500">
+        O porquê de cada odd: forma recente, o que a casa precifica, e o recorte de golos.
+      </p>
       <p className="mt-3 text-[15px] leading-7 text-zinc-800 dark:text-zinc-200">
         {analysis.text}
       </p>
@@ -151,6 +154,33 @@ export default async function JogoPage({
           </div>
         ) : null}
       </div>
+
+      {analysis.oddsNotes.length > 0 ? (
+        <section className="mt-8">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-800 dark:text-lime-300">
+            Porquê de cada odd
+          </h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Casa, empate e fora — o que a odd diz e o que os últimos jogos mostram.
+          </p>
+          <ul className="mt-4 space-y-4">
+            {analysis.oddsNotes.map((note) => (
+              <li
+                key={note.market}
+                className="rounded-xl border border-emerald-100 bg-white/70 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/30"
+              >
+                <p className="font-semibold text-emerald-950 dark:text-lime-200">
+                  {note.market} · {formatOdd(note.odd)}
+                  <span className="ml-2 text-sm font-normal text-zinc-500">
+                    modelo {pct(note.modelProb)}
+                  </span>
+                </p>
+                <p className="mt-1.5 text-sm leading-6 text-zinc-700 dark:text-zinc-300">{note.why}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <hr className="my-8 border-emerald-100 dark:border-emerald-900" />
 
@@ -193,19 +223,6 @@ export default async function JogoPage({
         </div>
       ) : null}
 
-      {shownPicks.length > 0 ? (
-        <ul className="mt-4 space-y-3">
-          {shownPicks.map((pick) => (
-            <li key={`${pick.risk}-why`} className="text-sm leading-6">
-              <span className="font-semibold">
-                {pick.riskLabel}: {pick.market} · {formatOdd(pick.odd)}
-              </span>
-              <span className="text-zinc-600 dark:text-zinc-400"> — {pick.why}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
       <h2 className="mt-10 text-sm font-semibold uppercase tracking-wide text-emerald-800 dark:text-lime-300">
         Jogos usados
       </h2>
@@ -246,6 +263,7 @@ function PickRow({ pick, result }: { pick: Pick; result: SettleResult | null }) 
           <span className={`ml-2 text-sm font-semibold ${resultTone}`}>{resultLabel(result)}</span>
         ) : null}
       </p>
+      <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-400">{pick.why}</p>
     </li>
   );
 }

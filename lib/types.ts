@@ -70,6 +70,13 @@ export type Pick = {
   contract: PickContract;
 };
 
+export type OddsNote = {
+  market: string;
+  odd: number;
+  modelProb: number;
+  why: string;
+};
+
 export type MatchAnalysis = {
   text: string;
   lambdaHome: number;
@@ -80,4 +87,5 @@ export type MatchAnalysis = {
   pOver25: number;
   pBtts: number;
   picks: Pick[];
+  oddsNotes: OddsNote[];
 };
